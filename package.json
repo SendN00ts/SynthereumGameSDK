@@ -2,8 +2,9 @@
   "name": "synthereum-twitter-bot",
   "version": "1.0.0",
   "description": "Twitter bot that posts music content",
-  "main": "dist/index.js","scripts": {
-  "prebuild": "rimraf dist",
+  "main": "dist/index.js",
+  "scripts": {
+  "prebuild": "rm -rf dist",
   "build": "tsc",
   "start": "node dist/index.js"
 },
