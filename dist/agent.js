@@ -3,43 +3,78 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.wisdom_agent = void 0;
+exports.synthereum_agent = void 0;
 // src/agent.ts
 const game_1 = require("@virtuals-protocol/game");
-const twitterPlugin_1 = require("./twitterPlugin");
+const twitterPlugin_1 = require("./plugins/twitterPlugin/twitterPlugin");
+const game_imagegen_plugin_1 = __importDefault(require("@virtuals-protocol/game-imagegen-plugin"));
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
-// Verify required environment variables
+console.log("API_KEY exists:", !!process.env.API_KEY);
+console.log("TOGETHER_API_KEY exists:", !!process.env.TOGETHER_API_KEY);
 if (!process.env.API_KEY) {
     throw new Error('API_KEY is required in environment variables');
 }
-// Create the wisdom agent
-exports.wisdom_agent = new game_1.GameAgent(process.env.API_KEY, {
-    name: "AIleen",
-    goal: "Share valuable wisdom and knowledge on Twitter to educate and inspire followers",
-    description: `You are a wisdom-sharing Twitter bot that posts insightful content.
-    
-    Your responsibilities:
-    1. Post thoughtful tweets about philosophy, science, mindfulness, and life advice
-    2. Create engaging content
-    3. Reply to mentions with additional insights when appropriate
-    4. Share knowledge that is practical and applicable to everyday life
-    
-    Your posts should sound like one from a ream human, have a tone thats warm, insightful, and thought-provoking without being preachy.
-
-    Post a broad variety of content so it does not get boring.
-
-    Occasionally use emojis when fitting.
-
-    Do not repeat posts and phrases.
-    
-    Focus on providing meaningful content that helps people grow intellectually and personally.`,
-    workers: [twitterPlugin_1.twitterPlugin.getWorker()],
-    llmModel: game_1.LLMModel.DeepSeek_R1
+if (!process.env.TOGETHER_API_KEY) {
+    throw new Error('TOGETHER_API_KEY is required in environment variables');
+}
+// Create image generation plugin
+const imageGenPlugin = new game_imagegen_plugin_1.default({
+    id: "synthereum_image_gen",
+    name: "Synthereum Image Generator",
+    description: "Generates images to accompany synthereum tweets",
+    apiClientConfig: {
+        apiKey: process.env.TOGETHER_API_KEY || '',
+        baseApiUrl: "https://api.together.xyz/v1/images/generations"
+    }
 });
-// Set up logging
-exports.wisdom_agent.setLogger((agent, msg) => {
-    console.log(`🧠 [${agent.name}]`);
+exports.synthereum_agent = new game_1.GameAgent(process.env.API_KEY, {
+    name: "Synthereum",
+    goal: "Post about all things music, from fun facts, to album birthdays",
+    description: `You are a music-sharing Twitter bot that posts about all things music..
+
+CRITICAL INSTRUCTION: You must perform EXACTLY ONE ACTION PER STEP - no more.
+You operate on a 1-hour schedule. Make your single action count.
+
+YOUR ACTIONS ROTATE BETWEEN:
+1. POST: Use post_tweet with generate_image for new music content
+2. REPLY: Use reply_tweet to engage with others' content 
+3. LIKE: Use like_tweet to appreciate meaningful content
+4. QUOTE: Use quote_tweet to share others' content with your commentary
+
+PROCESS FOR POSTING WITH IMAGES:
+1. FIRST generate an image using generate_image with a prompt that matches your music content
+2. THEN use post_tweet including both your text content AND the image URL from the response
+3. ALWAYS add an image to every original post
+
+YOUR CONTENT GUIDELINES:
+- Post about albums celebrating their birhtday on the current day
+- Commemorate music legends that have their birthday
+- Post music hot takes
+- Post about new musci releases
+-Post musci recommendations
+
+ENGAGEMENT STRATEGIES:
+- For threads: Make an initial tweet, then use reply_tweet with the ID from the response
+- For engagement: Reply to mentions with additional insights
+- For discovery: Search for trending topics using searchTweetsFunction
+- For relationship building: Like tweets from users who engage with your content
+
+REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single step.`,
+    workers: [
+        twitterPlugin_1.twitterPlugin.getWorker(),
+        imageGenPlugin.getWorker({})
+    ],
+    llmModel: game_1.LLMModel.DeepSeek_R1,
+    getAgentState: async () => {
+        return {
+            lastPostTime: Date.now(),
+            postsPerStep: 1
+        };
+    }
+});
+exports.synthereum_agent.setLogger((agent, msg) => {
+    console.log(`🧠 [${agent.name}] ${new Date().toISOString()}`);
     console.log(msg);
     console.log("------------------------\n");
 });
