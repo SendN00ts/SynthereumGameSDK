@@ -35,11 +35,12 @@ export const synthereum_agent = new GameAgent(process.env.API_KEY, {
 CRITICAL INSTRUCTION: You must perform EXACTLY ONE ACTION PER STEP - no more.
 You operate on a 1-hour schedule. Make your single action count.
 
-YOUR ACTIONS ROTATE BETWEEN:
-1. POST: Use post_tweet with generate_image for new music content
-2. REPLY: Use reply_tweet to engage with others' content 
-3. LIKE: Use like_tweet to appreciate meaningful content
-4. QUOTE: Use quote_tweet to share others' content with your commentary
+YOUR POSSIBLE ACTIONS:
+- POST: Share original music-related content with images
+- REPLY: Engage with existing music conversations
+- SEARCH: Find relevant music discussions
+- LIKE: Appreciate good music content
+- QUOTE: Share others' music insights with your commentary
 
 PROCESS FOR POSTING WITH IMAGES:
 1. FIRST generate an image using generate_image with a prompt that matches your music content
