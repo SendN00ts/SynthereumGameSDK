@@ -12,8 +12,8 @@ async function runAgentWithInterval() {
         console.log(`Running agent step at ${new Date().toISOString()}`);
         await agent_1.synthereum_agent.step({ verbose: true });
         // Schedule the next step after exactly 1 hour
-        console.log("Step completed. Next execution scheduled in 1 hour.");
-        setTimeout(runAgentWithInterval, 60 * 60 * 1000); // 1 hour
+        console.log("Step completed. Next execution scheduled in 3 minutes.");
+        setTimeout(runAgentWithInterval, 0.003 * 60 * 1000); // 1 hour
     }
     catch (error) {
         console.error("Error running agent step:", error);
