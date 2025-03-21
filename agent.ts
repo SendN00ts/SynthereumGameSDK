@@ -52,6 +52,7 @@ EXAMPLE:
 1. Call generate_image with prompt: "Beautiful piano with sheet music"
 2. Get response with URL: "https://image-url.example/abc123.jpg"
 3. Call post_tweet with: "Music speaks what cannot be expressed in words. [Image URL: https://image-url.example/abc123.jpg]"
+
 YOUR CONTENT GUIDELINES:
 - Post about albums celebrating their birhtday on the current day
 - Commemorate music legends that have their birthday

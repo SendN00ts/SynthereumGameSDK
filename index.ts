@@ -57,7 +57,7 @@ async function runAgentWithSchedule(retryCount = 0) {
     // If this was a post, update last post time
     if (nextAction === ACTIONS.POST) {
       lastPostTime = Date.now();
-      console.log("Post completed. Next post in 1 hour.");
+      console.log("Post completed. Next post in one hour.");
       setTimeout(() => runAgentWithSchedule(0), OTHER_ACTION_INTERVAL);
     } else {
       console.log(`${nextAction.toUpperCase()} action completed. Next action in 15 minutes.`);
