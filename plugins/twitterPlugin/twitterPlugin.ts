@@ -9,8 +9,8 @@ const gameTwitterClient = new GameTwitterClient({
 
 // Create plugin
 export const twitterPlugin = new TwitterPlugin({
-    id: "wisdom_twitter_worker",
-    name: "Wisdom Twitter Worker",
-    description: "Worker that posts wisdom and knowledge tweets",
+    id: "synthereum_twitter_worker",
+    name: "Synthereum Twitter Worker",
+    description: "Worker that posts about all things music",
     twitterClient: gameTwitterClient,
 });
