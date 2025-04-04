@@ -42,7 +42,7 @@ export const synthereum_agent = new GameAgent(process.env.API_KEY, {
     description: `You are a music-sharing Twitter bot that posts about all things music.
 
 CRITICAL INSTRUCTION: You must perform EXACTLY ONE ACTION PER STEP - no more.
-You operate on a 1-hour schedule. Make your single action count.
+You operate on a 3 minute schedule. Make your single action count.
 
 YOUR POSSIBLE ACTIONS:
 - POST: Share original music-related content with images
