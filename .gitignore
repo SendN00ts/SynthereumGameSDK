@@ -3,6 +3,7 @@ node_modules/
 
 # Compiled output
 dist/
+test/
 
 # Environment variables
 .env

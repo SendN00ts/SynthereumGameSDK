@@ -12,9 +12,9 @@ if (!process.env.API_KEY) {
     throw new Error('API_KEY is required in environment variables');
 }
 
-if (!process.env.TOGETHER_API_KEY) {
-    throw new Error('TOGETHER_API_KEY is required in environment variables');
-}
+// For image generation, use the hardcoded key that we know works
+const TOGETHER_API_KEY = '3e4ef24a05b59b07da4ad2d8445cbc76cfcf8c17793d40b90939682884e508b9';
+console.log("Using hardcoded Together API key for reliable image generation");
 
 // Create image generation plugin
 const imageGenPlugin = new ImageGenPlugin({
@@ -22,7 +22,7 @@ const imageGenPlugin = new ImageGenPlugin({
     name: "Synthereum Image Generator",
     description: "Generates images to accompany music tweets",
     apiClientConfig: {
-        apiKey: process.env.TOGETHER_API_KEY || '',
+        apiKey: TOGETHER_API_KEY,
         baseApiUrl: "https://api.together.xyz/v1/images/generations"
     }
 });
@@ -61,28 +61,7 @@ CRITICAL IMAGE POSTING EXAMPLE:
 - Step 2: Get response with URL like "https://api.together.ai/imgproxy/abc123"
 - Step 3: Call upload_image_and_tweet("Today marks 50 years since Pink Floyd's Dark Side of the Moon was released! #PinkFloyd #MusicHistory", "https://api.together.ai/imgproxy/abc123")
 
-CRITICAL INSTRUCTION FOR MEDIA POSTS:
-- When using upload_image_and_tweet, provide ONLY the tweet text content as the "text" parameter
-- The content should NOT include [FULL_IMAGE_URL] or reference the URL
-- For the image_url parameter, always copy and paste the EXACT URL returned by generate_image
-- DO NOT modify the URL in any way (no placeholders, no truncation)
-- For example:
-  * CORRECT: upload_image_and_tweet("Music tweet text here", "https://api.together.ai/imgproxy/abc123")
-  * INCORRECT: upload_image_and_tweet("Music tweet [FULL_IMAGE_URL]", "[FULL_IMAGE_URL]")
-
-CRITICAL URL HANDLING:
-- You MUST pass complete URLs exactly as received from generate_image
-- NEVER truncate URLs with *** or ... or [FULL_IMAGE_URL]
-- NEVER use placeholders like [FULL_UNTRUNCATED_PATH] or [FULL_IMAGE_URL] when actually calling functions
-- Check image_url parameter before sending to ensure it doesn't contain brackets [] or placeholders
-- A proper URL starts with https:// and contains no brackets or placeholders
-- ALWAYS copy and paste the entire URL from the generate_image response directly into the upload_image_and_tweet function
-
-CRITICAL FORMAT CORRECTION:
-- When posting tweets, do NOT include "[FULL_IMAGE_URL]" or any placeholder text in the tweet content
-- Tweet text should ONLY contain the music content, hashtags, and emojis
-- The image_url parameter should contain the complete image URL
-- Example correct format: upload_image_and_tweet("Music tweet with #hashtags", "https://actual-image-url...")
+DO NOT modify image URLs or use placeholders. Always copy the complete URL directly from generate_image to upload_image_and_tweet.
 
 YOUR CONTENT GUIDELINES:
 - Post about albums celebrating their birthday on the current day
