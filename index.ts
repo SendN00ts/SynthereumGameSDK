@@ -8,7 +8,9 @@ enum ACTIONS {
   REPLY = 'reply',
   SEARCH = 'search',
   LIKE = 'like',
-  QUOTE = 'quote'
+  QUOTE = 'quote',
+  RECOMMEND = 'recommend', // New action for music recommendations
+  NEW_RELEASES = 'new_releases' // New action for new music releases
 }
 
 // Tracking variables
@@ -20,6 +22,8 @@ const MAX_IMAGE_RETRIES = 3;
 // Config for timing
 const POST_INTERVAL = 3 * 60 * 1000; // 3 minutes for posts (for testing)
 const OTHER_ACTION_INTERVAL = 15 * 60 * 1000; // 15 minutes for other actions
+const RECOMMENDATION_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours for recommendations
+const NEW_RELEASES_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours for new releases
 
 // Track current action in rotation (excluding POST which has its own schedule)
 let currentActionIndex = 0;
@@ -30,10 +34,31 @@ const nonPostActions = [
   ACTIONS.QUOTE
 ];
 
+// Track last times for special actions
+let lastRecommendationTime = 0;
+let lastNewReleasesTime = 0;
+
 // Function to get next action based on timing
 function getNextAction(): ACTIONS {
   const now = Date.now();
   const timeSinceLastPost = now - lastPostTime;
+  const timeSinceLastRecommendation = now - lastRecommendationTime;
+  const timeSinceLastNewRelease = now - lastNewReleasesTime;
+  
+  // If YouTube API key isn't set, don't recommend those actions
+  const youtubeAvailable = !!process.env.YOUTUBE_API_KEY;
+  
+  // If it's been more than RECOMMENDATION_INTERVAL since last recommendation
+  // and YouTube API is available, do a recommendation
+  if (youtubeAvailable && timeSinceLastRecommendation >= RECOMMENDATION_INTERVAL) {
+    return ACTIONS.RECOMMEND;
+  }
+  
+  // If it's been more than NEW_RELEASES_INTERVAL since last new releases post
+  // and YouTube API is available, do a new releases post
+  if (youtubeAvailable && timeSinceLastNewRelease >= NEW_RELEASES_INTERVAL) {
+    return ACTIONS.NEW_RELEASES;
+  }
   
   // If it's been more than POST_INTERVAL since last post, do a post
   if (timeSinceLastPost >= POST_INTERVAL) {
@@ -64,7 +89,9 @@ function updateAgentForAction(action: ACTIONS, needsImageRegeneration = false): 
     [ACTIONS.REPLY]: "REPLY to existing music conversations",
     [ACTIONS.SEARCH]: "SEARCH for relevant music discussions",
     [ACTIONS.LIKE]: "LIKE meaningful music content",
-    [ACTIONS.QUOTE]: "QUOTE other music tweets with your commentary"
+    [ACTIONS.QUOTE]: "QUOTE other music tweets with your commentary",
+    [ACTIONS.RECOMMEND]: "RECOMMEND music from YouTube (use get_music_recommendations and post_music_recommendation)",
+    [ACTIONS.NEW_RELEASES]: "Post about NEW MUSIC RELEASES from YouTube (use get_new_music_releases and post_music_recommendation)"
   };
   
   // Add regeneration hint if needed
@@ -87,6 +114,28 @@ Create high-quality, thoughtful music content that stands on its own without an 
 `;
   }
   
+  if (action === ACTIONS.RECOMMEND) {
+    additionalInstructions = `
+IMPORTANT: For recommendations, follow this EXACT process:
+1. First call get_music_recommendations with a specific genre, artist, mood, or theme
+2. Review the results and select ONE video to recommend
+3. Use post_music_recommendation with the selected video_id and your custom text
+
+Choose diverse genres and artists for recommendations. Add your personal commentary on why you're recommending this music.
+`;
+  }
+  
+  if (action === ACTIONS.NEW_RELEASES) {
+    additionalInstructions = `
+IMPORTANT: For new releases, follow this EXACT process:
+1. First call get_new_music_releases to find popular new music
+2. Review the results and select ONE new release to highlight
+3. Use post_music_recommendation with the selected video_id and your custom text
+
+Focus on what makes this release exciting, the artist's background, or the musical style in your commentary.
+`;
+  }
+  
   // Update agent's description
   synthereum_agent.description = `You are a music-sharing Twitter bot that posts about all things music.
 
@@ -99,6 +148,8 @@ YOUR POSSIBLE ACTIONS:
 - SEARCH: Find relevant music discussions
 - LIKE: Appreciate good music content
 - QUOTE: Share others' music insights with your commentary
+- RECOMMEND: Share music recommendations from YouTube
+- NEW_RELEASES: Post about new music releases from YouTube
 
 CURRENT REQUIRED ACTION: ${action.toUpperCase()}
 
@@ -111,18 +162,30 @@ CRITICAL PROCESS FOR POSTING WITH IMAGES:
 2. Copy the EXACT URL from the response
 3. Use upload_image_and_tweet with the tweet text and the URL
 
+CRITICAL PROCESS FOR MUSIC RECOMMENDATIONS:
+1. Use get_music_recommendations with a genre, artist, or theme
+2. Select one of the returned recommendations
+3. Use post_music_recommendation with the video_id and your custom text
+
+CRITICAL PROCESS FOR NEW RELEASES:
+1. Use get_new_music_releases to find popular new music
+2. Select one of the returned releases
+3. Use post_music_recommendation with the video_id and your custom text
+
 YOUR CONTENT GUIDELINES:
 - Post about albums celebrating their birthday on the current day
 - Commemorate music legends that have their birthday
 - Post music hot takes
 - Post about new music releases
-- Post music recommendations
+- Post music recommendations with thoughtful commentary
+- Highlight different musical genres to provide variety
 
 ENGAGEMENT STRATEGIES:
 - For threads: Make an initial tweet, then use reply_tweet with the ID from the response
 - For engagement: Reply to mentions with additional insights
 - For discovery: Search for trending topics using search_tweets
 - For relationship building: Like tweets from users who engage with your content
+- For recommendations: Select diverse genres and artists to recommend
 - Use emojis to make your posts more lively
 
 REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single step.`;
@@ -180,6 +243,20 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
           // Posting without an image
           await synthereum_agent.step({ verbose: true });
           imageRetryCount = 0; // Reset counter after successful post
+          success = true;
+          break;
+          
+        case ACTIONS.RECOMMEND:
+          // Handle music recommendation action
+          await synthereum_agent.step({ verbose: true });
+          lastRecommendationTime = Date.now();
+          success = true;
+          break;
+          
+        case ACTIONS.NEW_RELEASES:
+          // Handle new releases action
+          await synthereum_agent.step({ verbose: true });
+          lastNewReleasesTime = Date.now();
           success = true;
           break;
           
