@@ -1,5 +1,5 @@
-// src/index.ts
 import { synthereum_agent } from './agent';
+import * as http from 'http';
 
 // Define actions as an enum to ensure type safety
 enum ACTIONS {
@@ -9,8 +9,8 @@ enum ACTIONS {
   SEARCH = 'search',
   LIKE = 'like',
   QUOTE = 'quote',
-  RECOMMEND = 'recommend', // New action for music recommendations
-  NEW_RELEASES = 'new_releases' // New action for new music releases
+  RECOMMEND = 'recommend',   // Music-specific action
+  NEW_RELEASES = 'new_releases'  // Music-specific action
 }
 
 // Tracking variables
@@ -20,12 +20,12 @@ let imageRetryCount = 0;
 const MAX_IMAGE_RETRIES = 3;
 
 // Config for timing
-const POST_INTERVAL = 3 * 60 * 1000; // 3 minutes for posts (for testing)
+const POST_INTERVAL = 3 * 60 * 1000; // 3 minutes for posts
 const OTHER_ACTION_INTERVAL = 15 * 60 * 1000; // 15 minutes for other actions
 const RECOMMENDATION_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours for recommendations
 const NEW_RELEASES_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours for new releases
 
-// Track current action in rotation (excluding POST which has its own schedule)
+// Track current action in rotation
 let currentActionIndex = 0;
 const nonPostActions = [
   ACTIONS.REPLY, 
@@ -45,23 +45,29 @@ function getNextAction(): ACTIONS {
   const timeSinceLastRecommendation = now - lastRecommendationTime;
   const timeSinceLastNewRelease = now - lastNewReleasesTime;
   
-  // If YouTube API key isn't set, don't recommend those actions
+  console.log("Time since last post:", Math.round(timeSinceLastPost/1000), "seconds");
+  console.log("POST_INTERVAL:", Math.round(POST_INTERVAL/1000), "seconds");
+  
+  // Check if YouTube API key is available
   const youtubeAvailable = !!process.env.YOUTUBE_API_KEY;
   
   // If it's been more than RECOMMENDATION_INTERVAL since last recommendation
   // and YouTube API is available, do a recommendation
   if (youtubeAvailable && timeSinceLastRecommendation >= RECOMMENDATION_INTERVAL) {
+    console.log("Time for a music recommendation!");
     return ACTIONS.RECOMMEND;
   }
   
   // If it's been more than NEW_RELEASES_INTERVAL since last new releases post
   // and YouTube API is available, do a new releases post
   if (youtubeAvailable && timeSinceLastNewRelease >= NEW_RELEASES_INTERVAL) {
+    console.log("Time to post about new music releases!");
     return ACTIONS.NEW_RELEASES;
   }
   
   // If it's been more than POST_INTERVAL since last post, do a post
   if (timeSinceLastPost >= POST_INTERVAL) {
+    console.log("Time for a new post!");
     // If we've exceeded max retries for image posts, fall back to text-only
     if (imageRetryCount >= MAX_IMAGE_RETRIES) {
       console.log(`⚠️ Max image retries (${MAX_IMAGE_RETRIES}) reached. Posting without image.`);
@@ -102,6 +108,8 @@ IMPORTANT: Previous attempt failed due to image URL issues (attempt ${imageRetry
 Please generate a FRESH NEW IMAGE using generate_image before posting.
 DO NOT reuse previous image URLs. Generate a completely new image with a simpler prompt.
 Use simpler image descriptions with fewer details for more reliable processing.
+Use smaller image dimensions (width=768, height=768) for better reliability.
+REMEMBER to get the image URL using get_latest_image_url() after generating the image.
 `;
   }
 
@@ -158,9 +166,9 @@ ${additionalInstructions}
 All other actions are forbidden in this cycle.
 
 CRITICAL PROCESS FOR POSTING WITH IMAGES:
-1. First, use generate_image with a music-related prompt
-2. Copy the EXACT URL from the response
-3. Use upload_image_and_tweet with the tweet text and the URL
+1. First, use generate_image with a music-related prompt (with width=768, height=768)
+2. After generating the image, use get_latest_image_url to retrieve the correct image URL
+3. Use that EXACT URL with upload_image_and_tweet for your tweet
 
 CRITICAL PROCESS FOR MUSIC RECOMMENDATIONS:
 1. Use get_music_recommendations with a genre, artist, or theme
@@ -194,6 +202,8 @@ REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single 
 // Run agent with improved retry and scheduling
 async function runAgentWithSchedule(retryCount = 0): Promise<void> {
   try {
+    console.log("=== Starting scheduler cycle ===");
+    
     // Reset tracking
     functionCalledThisCycle = false;
     
@@ -212,6 +222,7 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
       switch (nextAction) {
         case ACTIONS.POST:
           // For posts, add special error handling to detect image URL issues
+          console.log("Executing POST action...");
           const result = await synthereum_agent.step({ verbose: true });
           
           // Check if response contains any indication of image URL issues
@@ -219,7 +230,8 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
              (result.includes("invalid image URL") || 
               result.includes("Image URL") || 
               result.includes("URL format") ||
-              result.includes("403 Forbidden"))) {
+              result.includes("403 Forbidden") ||
+              result.includes("ENOTFOUND"))) {
             
             // Increment retry counter
             imageRetryCount++;
@@ -241,6 +253,7 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
         
         case ACTIONS.POST_NO_IMAGE:
           // Posting without an image
+          console.log("Executing POST_NO_IMAGE action...");
           await synthereum_agent.step({ verbose: true });
           imageRetryCount = 0; // Reset counter after successful post
           success = true;
@@ -248,6 +261,7 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
           
         case ACTIONS.RECOMMEND:
           // Handle music recommendation action
+          console.log("Executing RECOMMEND action...");
           await synthereum_agent.step({ verbose: true });
           lastRecommendationTime = Date.now();
           success = true;
@@ -255,6 +269,7 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
           
         case ACTIONS.NEW_RELEASES:
           // Handle new releases action
+          console.log("Executing NEW_RELEASES action...");
           await synthereum_agent.step({ verbose: true });
           lastNewReleasesTime = Date.now();
           success = true;
@@ -262,6 +277,7 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
           
         default:
           // Handle all other actions
+          console.log(`Executing ${nextAction} action...`);
           await synthereum_agent.step({ verbose: true });
           success = true;
       }
@@ -274,6 +290,7 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
           typeof actionError.message === 'string' && 
           (actionError.message.includes("Image URL") || 
            actionError.message.includes("URL format") ||
+           actionError.message.includes("ENOTFOUND") ||
            actionError.message.includes("403 Forbidden"))) {
         
         if (imageRetryCount < MAX_IMAGE_RETRIES) {
@@ -299,6 +316,7 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
     }
     
     // Schedule next action
+    console.log(`Scheduling next action in ${OTHER_ACTION_INTERVAL/1000} seconds`);
     setTimeout(() => runAgentWithSchedule(0), OTHER_ACTION_INTERVAL);
     
   } catch (error) {
@@ -317,29 +335,97 @@ async function runAgentWithSchedule(retryCount = 0): Promise<void> {
   }
 }
 
+// Create a simple HTTP server to keep the process alive
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {'Content-Type': 'text/plain'});
+  res.end('Synthereum Music Bot is running\n');
+});
+
+// Set up process error handlers
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  // Don't exit, let the bot continue
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit, let the bot continue
+});
+
+// Heartbeat to show the process is still alive
+setInterval(() => {
+  console.log('Heartbeat check:', new Date().toISOString());
+}, 60000);
+
 async function main(): Promise<void> {
   try {
-    console.log("Initializing Music Twitter Bot...");
+    console.log("=======================================");
+    console.log("Initializing Synthereum Music Bot...");
+    console.log("=======================================");
+    
+    // Log environment details
+    console.log("Environment check:");
+    console.log("NODE_ENV:", process.env.NODE_ENV);
+    console.log("API_KEY present:", !!process.env.API_KEY);
+    console.log("TWITTER_API_KEY present:", !!process.env.TWITTER_API_KEY);
+    console.log("TOGETHER_API_KEY present:", !!process.env.TOGETHER_API_KEY);
+    console.log("YOUTUBE_API_KEY present:", !!process.env.YOUTUBE_API_KEY);
     
     // Sanitize description
     const sanitizedDescription = synthereum_agent.description.replace(/[\uD800-\uDFFF](?![\uD800-\uDFFF])|(?:[^\uD800-\uDFFF]|^)[\uDC00-\uDFFF]/g, '');
     synthereum_agent.description = sanitizedDescription;
     
-    await synthereum_agent.init();
-    console.log("Music Twitter Bot initialized successfully!");
+    try {
+      // Initialize the agent
+      console.log("Initializing agent...");
+      await synthereum_agent.init();
+      console.log("Agent initialization successful!");
+      
+      // Log available functions
+      console.log("Available functions:", synthereum_agent.workers.flatMap((w: any) =>
+        w.functions.map((f: any) => f.name)
+      ).join(", "));
+    } catch (initError) {
+      console.error("Failed to initialize agent:", initError);
+      throw initError;
+    }
     
-    // Log available functions
-    console.log("Available functions:", synthereum_agent.workers.flatMap((w: any) =>
-      w.functions.map((f: any) => f.name)
-    ));
+    // Start the HTTP server
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+      console.log(`HTTP server listening on port ${PORT}`);
+    });
 
-    // Start scheduling
-    runAgentWithSchedule();
+    console.log("Starting agent scheduler...");
+    
+    // Force an immediate first post to test that everything works
+    console.log("Forcing immediate first post...");
+    updateAgentForAction(ACTIONS.POST);
+    synthereum_agent.step({ verbose: true })
+      .then(() => console.log("Force post successful"))
+      .catch(err => console.error("Force post failed:", err));
+      
+    // Start scheduling after a delay
+    setTimeout(() => {
+      console.log("Starting regular scheduler");
+      runAgentWithSchedule();
+    }, 60000);
+    
+    console.log("Bot initialization complete!");
     
   } catch (error) {
-    console.error("Failed to initialize agent:", error);
-    process.exit(1);
+    console.error("ERROR in main function:", error);
+    
+    console.log("Will attempt restart in 60 seconds despite error");
+    setTimeout(() => {
+      console.log("Attempting to restart agent scheduler...");
+      runAgentWithSchedule();
+    }, 60000);
   }
 }
 
-main();
+// Run the main function
+console.log("Starting bot process", new Date().toISOString());
+main().catch(err => {
+  console.error("Fatal error in main promise chain:", err);
+});

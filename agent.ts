@@ -2,6 +2,8 @@ import { GameAgent, LLMModel } from "@virtuals-protocol/game";
 import { twitterPlugin } from "./plugins/twitterPlugin/twitterPlugin";
 import ImageGenPlugin from "@virtuals-protocol/game-imagegen-plugin";
 import { createTwitterMediaWorker } from './plugins/twitterMediaPlugin';
+import { createEnhancedImageGenPlugin } from './plugins/modifiedImageGenPlugin';
+import { createImageUrlHandlerWorker } from './plugins/imageUrlHandler';
 import { createYouTubePlugin } from './plugins/youtubePlugin'; // Import YouTube plugin
 import dotenv from "dotenv";
 dotenv.config();
@@ -14,24 +16,32 @@ if (!process.env.API_KEY) {
     throw new Error('API_KEY is required in environment variables');
 }
 
+if (!process.env.TOGETHER_API_KEY) {
+    throw new Error('TOGETHER_API_KEY is required in environment variables');
+}
+
 if (!process.env.YOUTUBE_API_KEY) {
     console.warn('YOUTUBE_API_KEY is not set. YouTube functions will not work.');
 }
 
-// For image generation, use the hardcoded key that we know works
-const TOGETHER_API_KEY = '3e4ef24a05b59b07da4ad2d8445cbc76cfcf8c17793d40b90939682884e508b9';
-console.log("Using hardcoded Together API key for reliable image generation");
-
-// Create image generation plugin
-const imageGenPlugin = new ImageGenPlugin({
+// Create image generation plugin configuration
+const imageGenConfig = {
     id: "synthereum_image_gen",
     name: "Synthereum Image Generator",
     description: "Generates images to accompany music tweets",
+    defaultWidth: 1440,  // Set smaller default dimensions for more reliable URLs
+    defaultHeight: 1440, // Set smaller default dimensions for more reliable URLs
     apiClientConfig: {
-        apiKey: TOGETHER_API_KEY,
+        apiKey: process.env.TOGETHER_API_KEY || '',
         baseApiUrl: "https://api.together.xyz/v1/images/generations"
     }
-});
+};
+
+// Create enhanced image generation worker that captures URLs
+const enhancedImageGenWorker = createEnhancedImageGenPlugin(imageGenConfig);
+
+// Create image URL handler worker
+const imageUrlHandlerWorker = createImageUrlHandlerWorker();
 
 const twitterMediaWorker = createTwitterMediaWorker(
     process.env.TWITTER_API_KEY!,
@@ -79,12 +89,13 @@ CRITICAL PROCESS FOR NEW RELEASES:
 2. Select one of the returned releases
 3. Use post_music_recommendation with the video_id and your custom text
 
-CRITICAL IMAGE POSTING EXAMPLE:
-- Step 1: Call generate_image with prompt "vintage vinyl records on a shelf"
-- Step 2: Get response with URL like "https://api.together.ai/imgproxy/abc123"
-- Step 3: Call upload_image_and_tweet("Today marks 50 years since Pink Floyd's Dark Side of the Moon was released! #PinkFloyd #MusicHistory", "https://api.together.ai/imgproxy/abc123")
+ALTERNATIVE POSTING METHOD (if generate_and_tweet fails):
+1. Generate an image using generate_image with a music-related prompt (using width=1440, height=1440)
+2. Get the image URL using get_latest_image_url
+3. Post using upload_image_and_tweet with the retrieved URL
 
-DO NOT modify image URLs or use placeholders. Always copy the complete URL directly from generate_image to upload_image_and_tweet.
+IMPORTANT: Always check if your previous action succeeded based on system feedback, not your own recollection.
+If the system confirms an image was generated or a tweet was posted, consider it a success.
 
 YOUR CONTENT GUIDELINES:
 - Post about albums celebrating their birthday on the current day
@@ -106,8 +117,9 @@ REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single 
 
     workers: [
         twitterWorker,
-        imageGenPlugin.getWorker({}) as any,
+        enhancedImageGenWorker,
         twitterMediaWorker,
+        imageUrlHandlerWorker,
         ...(youtubeWorker ? [youtubeWorker] : []) // Add YouTube worker if available
     ],
     llmModel: LLMModel.DeepSeek_R1,
@@ -124,3 +136,8 @@ synthereum_agent.setLogger((agent: any, msg: string) => {
     console.log(msg);
     console.log("------------------------\n");
 });
+
+// Make agent available globally
+if (typeof global !== 'undefined') {
+    (global as any).activeAgent = synthereum_agent;
+}
