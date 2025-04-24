@@ -21,9 +21,9 @@ const MAX_IMAGE_RETRIES = 3;
 
 // Config for timing
 const POST_INTERVAL = 3 * 60 * 1000; // 3 minutes for posts
-const OTHER_ACTION_INTERVAL = 15 * 60 * 1000; // 15 minutes for other actions
-const RECOMMENDATION_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours for recommendations
-const NEW_RELEASES_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours for new releases
+const OTHER_ACTION_INTERVAL = 3 * 60 * 1000; // 15 minutes for other actions
+const RECOMMENDATION_INTERVAL = 3 * 60 * 1000; // 6 hours for recommendations
+const NEW_RELEASES_INTERVAL = 3 * 60 * 1000; // 12 hours for new releases
 
 // Track current action in rotation
 let currentActionIndex = 0;
@@ -98,7 +98,10 @@ function updateAgentForAction(action: ACTIONS, needsImageRegeneration = false): 
     [ACTIONS.QUOTE]: "QUOTE other music tweets with your commentary",
     [ACTIONS.RECOMMEND]: "RECOMMEND music from YouTube (use get_music_recommendations and post_music_recommendation)",
     [ACTIONS.NEW_RELEASES]: "Post about NEW MUSIC RELEASES from YouTube (use get_new_music_releases and post_music_recommendation)"
+    
   };
+
+  
   
   // Add regeneration hint if needed
   let additionalInstructions = "";
@@ -196,7 +199,19 @@ ENGAGEMENT STRATEGIES:
 - For recommendations: Select diverse genres and artists to recommend
 - Use emojis to make your posts more lively
 
+IMPORTANT STEPS FOR REPLYING TO TARGET ACCOUNTS:
+1. First use find_target_account to get information about a target wellness account and their latest tweet
+2. Review the account description and tweet content carefully
+3. Then use reply_tweet with the exact tweet ID to create a thoughtful, personalized reply
+4. Be authentic, supportive and natural in your reply
+5. Keep replies concise (1-3 sentences)
+6. IMPORTANT: DO NOT USE HASHTAGS IN YOUR REPLIES
+
+IMPORTANT RULE: NO HASHTAGS ALLOWED IN ANY TWEETS OR REPLIES.
+
 REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single step.`;
+
+
 }
 
 // Run agent with improved retry and scheduling
