@@ -6,6 +6,7 @@ import { createEnhancedImageGenPlugin } from './plugins/modifiedImageGenPlugin';
 import { createImageUrlHandlerWorker } from './plugins/imageUrlHandler';
 import { createYouTubePlugin } from './plugins/youtubePlugin'; // Import YouTube plugin
 import { createAnniversaryCheckerWorker } from './plugins/anniversaryChecker'; // Import anniversary checker
+import { createStrictAnniversaryChecker } from './plugins/strictAnniversaryChecker';// Import strict anniversary checker
 import { createGenreSchedulerWorker } from './plugins/genreScheduler'; // Import genre scheduler
 import { isAnniversaryToday, getYearsSinceRelease } from './dateUtils';
 import dotenv from "dotenv";
@@ -62,6 +63,9 @@ const youtubeWorker = process.env.YOUTUBE_API_KEY
 
 // Create the anniversary checker worker
 const anniversaryCheckerWorker = createAnniversaryCheckerWorker();
+
+// Create the strict anniversary checker
+const strictAnniversaryChecker = createStrictAnniversaryChecker();
 
 // Create the genre scheduler worker
 const genreSchedulerWorker = createGenreSchedulerWorker();
@@ -125,17 +129,17 @@ CRITICAL PROCESS FOR NEW RELEASES:
 This ensures you'll rotate through different music genres systematically, giving your followers
 a diverse musical experience and not getting stuck recommending the same genres repeatedly.
 
-CRITICAL ANNIVERSARY POSTING:
-- ONLY post about album anniversaries if today (${currentDateString}) is the EXACT anniversary date
-- For example, if an album was released on ${today.toLocaleString('en-US', {month: 'long', day: 'numeric'})}, any year, you can post about it
-- Use check_anniversary function to verify if a date is actually an anniversary today
-  Example: check_anniversary("1967-06-01") to check if June 1st is today's date
-- For multiple albums, use check_album_anniversaries with a JSON array:
-  Example: check_album_anniversaries('[{"name":"Sgt. Pepper","artist":"The Beatles","releaseDate":"1967-06-01"},{"name":"Nevermind","artist":"Nirvana","releaseDate":"1991-09-24"}]')
-- DO NOT post about upcoming or recent anniversaries - only post if it's the EXACT date
-- Always include the number of years (e.g., "50th anniversary")
+CRITICAL ANNIVERSARY POSTING - MANDATORY VERIFICATION:
+- BEFORE posting ANY anniversary content, you MUST use verify_anniversary_date to check if it's a real anniversary
+- Example: verify_anniversary_date("1967-06-01", "Sgt. Pepper's Lonely Hearts Club Band", "The Beatles")
+- ONLY proceed with anniversary post if verify_anniversary_date returns canPost: true
+- ALL anniversary posts MUST BE VERIFIED first - NO EXCEPTIONS
+- If verify_anniversary_date returns canPost: false, DO NOT post about that anniversary
+- For multiple albums: use verify_multiple_anniversaries with a JSON array
+- Example: verify_multiple_anniversaries('[{"name":"Sgt. Pepper","artist":"The Beatles","releaseDate":"1967-06-01"},{"name":"Nevermind","artist":"Nirvana","releaseDate":"1991-09-24"}]')
+- DO NOT post about upcoming or recent anniversaries - only post if verification shows it's EXACTLY today
+- When approved, always include the number of years (e.g., "50th anniversary")
 - Use phrases like "On this day in [year]" or "X years ago today"
-- If you're not 100% sure about a release date, use the verification functions before posting
 
 ALTERNATIVE POSTING METHOD (if generate_image fails):
 1. Generate an image using generate_image with a music-related prompt (using width=1440, height=1440)
@@ -169,6 +173,7 @@ REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single 
         twitterMediaWorker,
         imageUrlHandlerWorker,
         anniversaryCheckerWorker,
+        strictAnniversaryChecker,
         genreSchedulerWorker,
         ...(youtubeWorker ? [youtubeWorker] : []) // Add YouTube worker if available
     ],
