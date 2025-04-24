@@ -20,10 +20,10 @@ let imageRetryCount = 0;
 const MAX_IMAGE_RETRIES = 3;
 
 // Config for timing
-const POST_INTERVAL = 3 * 60 * 1000; // 3 minutes for posts
-const OTHER_ACTION_INTERVAL = 3 * 60 * 1000; // 15 minutes for other actions
-const RECOMMENDATION_INTERVAL = 3 * 60 * 1000; // 6 hours for recommendations
-const NEW_RELEASES_INTERVAL = 3 * 60 * 1000; // 12 hours for new releases
+const POST_INTERVAL = 1 * 60 * 1000; // 3 minutes for posts
+const OTHER_ACTION_INTERVAL = 1 * 60 * 1000; // 15 minutes for other actions
+const RECOMMENDATION_INTERVAL = 1 * 60 * 1000; // 6 hours for recommendations
+const NEW_RELEASES_INTERVAL = 1 * 60 * 1000; // 12 hours for new releases
 
 // Track current action in rotation
 let currentActionIndex = 0;

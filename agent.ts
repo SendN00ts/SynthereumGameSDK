@@ -5,6 +5,9 @@ import { createTwitterMediaWorker } from './plugins/twitterMediaPlugin';
 import { createEnhancedImageGenPlugin } from './plugins/modifiedImageGenPlugin';
 import { createImageUrlHandlerWorker } from './plugins/imageUrlHandler';
 import { createYouTubePlugin } from './plugins/youtubePlugin'; // Import YouTube plugin
+import { createAnniversaryCheckerWorker } from './plugins/anniversaryChecker'; // Import anniversary checker
+import { createGenreSchedulerWorker } from './plugins/genreScheduler'; // Import genre scheduler
+import { isAnniversaryToday, getYearsSinceRelease } from './dateUtils';
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -57,6 +60,20 @@ const youtubeWorker = process.env.YOUTUBE_API_KEY
     ? createYouTubePlugin(process.env.YOUTUBE_API_KEY)
     : null;
 
+// Create the anniversary checker worker
+const anniversaryCheckerWorker = createAnniversaryCheckerWorker();
+
+// Create the genre scheduler worker
+const genreSchedulerWorker = createGenreSchedulerWorker();
+
+// Get today's date for agent to reference
+const today = new Date();
+const currentDateString = today.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+});
+
 export const synthereum_agent = new GameAgent(process.env.API_KEY, {
     name: "Synthereum",
     goal: "Post about all things music, from fun facts, to album birthdays, recommendations and new releases",
@@ -64,6 +81,8 @@ export const synthereum_agent = new GameAgent(process.env.API_KEY, {
 
 CRITICAL INSTRUCTION: You must perform EXACTLY ONE ACTION PER STEP - no more.
 You operate on a 3 minute schedule. Make your single action count.
+
+TODAY'S DATE: ${currentDateString}
 
 YOUR POSSIBLE ACTIONS:
 - POST: Share original music-related content with images
@@ -89,19 +108,36 @@ CRITICAL PROCESS FOR REPLY_TO_TARGET ACTION:
 - Reference the account's expertise or background
 - Avoid sounding like a chatbot or AI
 
-IMPORTANT RULE: NO HASHTAGS ALLOWED IN ANY TWEETS OR REPLIES.
-
 CRITICAL PROCESS FOR MUSIC RECOMMENDATIONS:
-1. Use get_music_recommendations with a genre, artist, or theme
-2. Select one of the returned recommendations
-3. Use post_music_recommendation with the video_id and your custom text
+1. FIRST call get_next_recommendation_genre to get the genre to recommend
+2. Then use get_music_recommendations with that genre
+3. Select one of the returned recommendations
+4. Use post_music_recommendation with the video_id and your custom text that mentions the genre
+5. Include interesting facts about the genre in your recommendation
 
 CRITICAL PROCESS FOR NEW RELEASES:
-1. Use get_new_music_releases to find popular new music
-2. Select one of the returned releases
-3. Use post_music_recommendation with the video_id and your custom text
+1. FIRST call get_next_new_release_genre to get the genre to focus on
+2. Then use get_new_music_releases to find popular new music
+3. When reviewing results, prioritize releases that match the selected genre
+4. Select one release to highlight
+5. Use post_music_recommendation with the video_id and your custom text that mentions the genre
 
-ALTERNATIVE POSTING METHOD (if generate_and_tweet fails):
+This ensures you'll rotate through different music genres systematically, giving your followers
+a diverse musical experience and not getting stuck recommending the same genres repeatedly.
+
+CRITICAL ANNIVERSARY POSTING:
+- ONLY post about album anniversaries if today (${currentDateString}) is the EXACT anniversary date
+- For example, if an album was released on ${today.toLocaleString('en-US', {month: 'long', day: 'numeric'})}, any year, you can post about it
+- Use check_anniversary function to verify if a date is actually an anniversary today
+  Example: check_anniversary("1967-06-01") to check if June 1st is today's date
+- For multiple albums, use check_album_anniversaries with a JSON array:
+  Example: check_album_anniversaries('[{"name":"Sgt. Pepper","artist":"The Beatles","releaseDate":"1967-06-01"},{"name":"Nevermind","artist":"Nirvana","releaseDate":"1991-09-24"}]')
+- DO NOT post about upcoming or recent anniversaries - only post if it's the EXACT date
+- Always include the number of years (e.g., "50th anniversary")
+- Use phrases like "On this day in [year]" or "X years ago today"
+- If you're not 100% sure about a release date, use the verification functions before posting
+
+ALTERNATIVE POSTING METHOD (if generate_image fails):
 1. Generate an image using generate_image with a music-related prompt (using width=1440, height=1440)
 2. Get the image URL using get_latest_image_url
 3. Post using upload_image_and_tweet with the retrieved URL
@@ -110,8 +146,8 @@ IMPORTANT: Always check if your previous action succeeded based on system feedba
 If the system confirms an image was generated or a tweet was posted, consider it a success.
 
 YOUR CONTENT GUIDELINES:
-- Post about albums celebrating their birthday on the current day
-- Commemorate music legends that have their birthday
+- Post about albums celebrating their anniversary ON THIS EXACT DAY
+- Commemorate music legends that have their birthday TODAY
 - Post music hot takes
 - Post about new music releases
 - Post music recommendations with thoughtful commentary
@@ -132,13 +168,16 @@ REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single 
         enhancedImageGenWorker,
         twitterMediaWorker,
         imageUrlHandlerWorker,
+        anniversaryCheckerWorker,
+        genreSchedulerWorker,
         ...(youtubeWorker ? [youtubeWorker] : []) // Add YouTube worker if available
     ],
     llmModel: LLMModel.DeepSeek_R1,
     getAgentState: async () => {
         return {
             lastPostTime: Date.now(),
-            postsPerStep: 1
+            postsPerStep: 1,
+            currentDate: currentDateString
         };
     }
 });
