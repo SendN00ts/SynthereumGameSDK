@@ -5,11 +5,7 @@ import { createTwitterMediaWorker } from './plugins/twitterMediaPlugin';
 import { createEnhancedImageGenPlugin } from './plugins/modifiedImageGenPlugin';
 import { createImageUrlHandlerWorker } from './plugins/imageUrlHandler';
 import { createYouTubePlugin } from './plugins/youtubePlugin';
-import { createAnniversaryCheckerWorker } from './plugins/anniversaryChecker';
-import { createStrictAnniversaryChecker } from './plugins/strictAnniversaryChecker';
 import { createEnforcedAnniversaryChecker } from './plugins/enforcedAnniversaryChecker';
-import { createImagePromptGenerator } from './plugins/imagePromptGenerator';
-import { createGenreSchedulerWorker } from './plugins/genreScheduler';
 import { isAnniversaryToday, getYearsSinceRelease } from './dateUtils';
 import dotenv from "dotenv";
 dotenv.config();
@@ -63,16 +59,8 @@ const youtubeWorker = process.env.YOUTUBE_API_KEY
     ? createYouTubePlugin(process.env.YOUTUBE_API_KEY)
     : null;
 
-// Create anniversary checker workers
-const anniversaryCheckerWorker = createAnniversaryCheckerWorker();
-const strictAnniversaryChecker = createStrictAnniversaryChecker();
+// Create anniversary checker worker - only need one
 const enforcedAnniversaryChecker = createEnforcedAnniversaryChecker();
-
-// Create image prompt generator
-const imagePromptGenerator = createImagePromptGenerator();
-
-// Create the genre scheduler worker
-const genreSchedulerWorker = createGenreSchedulerWorker();
 
 // Get today's date for agent to reference
 const today = new Date();
@@ -116,15 +104,24 @@ CRITICAL PROCESS FOR REPLY_TO_TARGET ACTION:
 - Reference the account's expertise or background
 - Avoid sounding like a chatbot or AI
 
-CRITICAL ANNIVERSARY POSTING - ENFORCED SYSTEM:
+CRITICAL ANNIVERSARY POSTING - MANDATORY VERIFICATION:
 1. BEFORE posting ANY anniversary content, you MUST first request approval:
    - For albums: request_anniversary_post_approval("1967-06-01", "Sgt. Pepper", "The Beatles")
    - For musicians: request_birthday_post_approval("1942-06-18", "Paul McCartney", "Rock legend")
 2. These functions will verify if today is the EXACT anniversary/birthday date
-3. If approved, use the returned approvalId and image prompt suggestion
-4. For album anniversaries: generate_album_anniversary_prompt("Album Name", "Artist", "Genre")
-5. For musician birthdays: generate_musician_birthday_prompt("Name", "Genre", "Instruments")
-6. NEVER post about anniversaries that aren't approved - NO EXCEPTIONS
+3. The system has a database of KNOWN album release dates that it will check against
+4. If a date you provide doesn't match a known release date, the request will be REJECTED
+5. ONLY proceed if the approval function explicitly returns approved: true
+6. IMPORTANT: Always use the correct MM-DD format when checking dates
+7. NEVER post about anniversaries that aren't approved - NO EXCEPTIONS
+
+SPECIAL IMAGE PROMPTS:
+- For anniversaries: Include the album cover art style in your image prompt
+  Example: "Sgt. Pepper's Lonely Hearts Club Band album art by The Beatles, iconic album artwork, detailed illustration"
+- For musician birthdays: Focus on a portrait of the musician
+  Example: "portrait of John Lennon, rock musician, professional photography, detailed face"
+- For recommendations: Include genre-specific imagery
+  Example: For jazz: "jazz club, saxophone, piano, smoky atmosphere, blue lighting"
 
 ALTERNATIVE POSTING METHOD (if generate_image fails):
 1. Generate an image using generate_image with a music-related prompt (using width=1440, height=1440)
@@ -132,20 +129,20 @@ ALTERNATIVE POSTING METHOD (if generate_image fails):
 3. Post using upload_image_and_tweet with the retrieved URL
 
 CRITICAL PROCESS FOR MUSIC RECOMMENDATIONS:
-1. FIRST call get_next_recommendation_genre to get the genre to recommend
-2. Then use get_music_recommendations with that genre
-3. Select one of the returned recommendations
-4. Generate an image with generate_music_recommendation_prompt("Song Name", "Artist", "Genre", "Mood")
-5. Use post_music_recommendation with the video_id and your custom text that mentions the genre
-6. Include interesting facts about the genre in your recommendation
+1. Use get_music_recommendations with a specific genre 
+   (rotate between: Jazz, Rock, Electronic, Hip Hop, Classical, Folk)
+2. Select one of the returned recommendations
+3. Generate an appropriate image related to that music genre
+4. Use post_music_recommendation with the video_id and your custom text
+5. Include interesting facts about the genre in your recommendation
 
 CRITICAL PROCESS FOR NEW RELEASES:
-1. FIRST call get_next_new_release_genre to get the genre to focus on
-2. Then use get_new_music_releases to find popular new music
-3. When reviewing results, prioritize releases that match the selected genre
-4. Select one release to highlight
-5. Generate an image with generate_new_release_prompt("Release Name", "Artist", "Genre")
-6. Use post_music_recommendation with the video_id and your custom text that mentions the genre
+1. Use get_new_music_releases to find popular new music
+2. When reviewing results, focus on a specific genre 
+   (rotate between: Rock, Pop, Jazz, Electronic, Hip Hop)
+3. Select one release to highlight
+4. Generate an image related to new music in that genre
+5. Use post_music_recommendation with the video_id and your custom text
 
 IMPORTANT: Always check if your previous action succeeded based on system feedback, not your own recollection.
 If the system confirms an image was generated or a tweet was posted, consider it a success.
@@ -173,11 +170,7 @@ REMEMBER: ONE ACTION PER STEP ONLY. Do not attempt multiple actions in a single 
         enhancedImageGenWorker,
         twitterMediaWorker,
         imageUrlHandlerWorker,
-        anniversaryCheckerWorker,
-        strictAnniversaryChecker,
         enforcedAnniversaryChecker,
-        imagePromptGenerator,
-        genreSchedulerWorker,
         ...(youtubeWorker ? [youtubeWorker] : []) // Add YouTube worker if available
     ],
     llmModel: LLMModel.DeepSeek_R1,

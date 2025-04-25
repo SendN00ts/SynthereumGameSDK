@@ -1,5 +1,9 @@
 import { GameWorker, GameFunction, ExecutableGameFunctionResponse, ExecutableGameFunctionStatus } from "@virtuals-protocol/game";
 
+/**
+ * Creates a worker that enforces strict anniversary checking with a post approval system
+ * This makes it impossible to post an anniversary without verification
+ */
 export function createEnforcedAnniversaryChecker() {
   // Keep a record of verified anniversaries that are approved for posting
   const approvedAnniversaries = new Map<string, {
@@ -15,6 +19,22 @@ export function createEnforcedAnniversaryChecker() {
   setInterval(() => {
     approvedAnniversaries.clear();
   }, 24 * 60 * 60 * 1000);
+
+  // Known true album release dates for verification
+  const knownAlbumDates: Record<string, string> = {
+    // Format: 'Album Name by Artist': 'MM-DD'
+    'Elephant by The White Stripes': '04-01',
+    'The Dark Side of the Moon by Pink Floyd': '03-01',
+    'Thriller by Michael Jackson': '11-30',
+    'Abbey Road by The Beatles': '09-26',
+    'Nevermind by Nirvana': '09-24',
+    'OK Computer by Radiohead': '05-21',
+    'Purple Rain by Prince': '06-25',
+    'Rumours by Fleetwood Mac': '02-04',
+    'Back in Black by AC/DC': '07-25',
+    'The Miseducation of Lauryn Hill by Lauryn Hill': '08-25'
+    // Add more known dates as needed
+  };
 
   // Function to verify an anniversary date and get an approval ID
   const requestAnniversaryPostApproval = new GameFunction({
@@ -46,6 +66,29 @@ export function createEnforcedAnniversaryChecker() {
         const today = new Date();
         const todayMonth = today.getMonth() + 1; // 1-12
         const todayDay = today.getDate(); // 1-31
+        
+        // Format today's date as MM-DD for comparison
+        const todayFormatted = `${todayMonth.toString().padStart(2, '0')}-${todayDay.toString().padStart(2, '0')}`;
+        
+        // Check against known dates first
+        const albumKey = `${album_name} by ${artist_name}`;
+        if (knownAlbumDates[albumKey]) {
+          const knownDate = knownAlbumDates[albumKey];
+          if (knownDate !== todayFormatted) {
+            return new ExecutableGameFunctionResponse(
+              ExecutableGameFunctionStatus.Done,
+              JSON.stringify({
+                approved: false,
+                album: album_name,
+                artist: artist_name,
+                knownReleaseDate: knownDate,
+                todayDate: todayFormatted,
+                reason: `VERIFIED FALSE: This album's actual release date is ${knownDate}, not today (${todayFormatted})`,
+                approvalId: null
+              })
+            );
+          }
+        }
         
         // Parse the input date
         let releaseMonth = -1;
@@ -89,8 +132,11 @@ export function createEnforcedAnniversaryChecker() {
           );
         }
         
+        // Format the release date as MM-DD for comparison
+        const releaseFormatted = `${releaseMonth.toString().padStart(2, '0')}-${releaseDay.toString().padStart(2, '0')}`;
+        
         // Check if today is the anniversary (same month and day)
-        const isAnniversary = (releaseMonth === todayMonth && releaseDay === todayDay);
+        const isAnniversary = (releaseFormatted === todayFormatted);
         
         if (!isAnniversary) {
           return new ExecutableGameFunctionResponse(
@@ -100,11 +146,10 @@ export function createEnforcedAnniversaryChecker() {
               album: album_name,
               artist: artist_name,
               releaseDate: release_date,
-              actualMonth: releaseMonth,
-              actualDay: releaseDay,
-              todayMonth: todayMonth,
-              todayDay: todayDay,
-              reason: `Today (${todayMonth}/${todayDay}) is NOT the anniversary of ${album_name} by ${artist_name} (${releaseMonth}/${releaseDay})`,
+              parsedReleaseDate: releaseFormatted,
+              todayDate: todayFormatted,
+              exact_match_required: true,
+              reason: `Today (${todayFormatted}) is NOT the anniversary of ${album_name} by ${artist_name} (${releaseFormatted})`,
               approvalId: null
             })
           );
@@ -186,6 +231,9 @@ export function createEnforcedAnniversaryChecker() {
         const todayMonth = today.getMonth() + 1; // 1-12
         const todayDay = today.getDate(); // 1-31
         
+        // Format today's date as MM-DD for comparison
+        const todayFormatted = `${todayMonth.toString().padStart(2, '0')}-${todayDay.toString().padStart(2, '0')}`;
+        
         // Parse the input date
         let birthMonth = -1;
         let birthDay = -1;
@@ -228,8 +276,11 @@ export function createEnforcedAnniversaryChecker() {
           );
         }
         
+        // Format the birth date as MM-DD for comparison
+        const birthFormatted = `${birthMonth.toString().padStart(2, '0')}-${birthDay.toString().padStart(2, '0')}`;
+        
         // Check if today is the birthday (same month and day)
-        const isBirthday = (birthMonth === todayMonth && birthDay === todayDay);
+        const isBirthday = (birthFormatted === todayFormatted);
         
         if (!isBirthday) {
           return new ExecutableGameFunctionResponse(
@@ -238,11 +289,10 @@ export function createEnforcedAnniversaryChecker() {
               approved: false,
               musician: musician_name,
               birthDate: birth_date,
-              actualMonth: birthMonth,
-              actualDay: birthDay,
-              todayMonth: todayMonth,
-              todayDay: todayDay,
-              reason: `Today (${todayMonth}/${todayDay}) is NOT ${musician_name}'s birthday (${birthMonth}/${birthDay})`,
+              parsedBirthDate: birthFormatted,
+              todayDate: todayFormatted,
+              exact_match_required: true,
+              reason: `Today (${todayFormatted}) is NOT ${musician_name}'s birthday (${birthFormatted})`,
               approvalId: null
             })
           );

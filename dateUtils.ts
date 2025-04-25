@@ -1,3 +1,8 @@
+/**
+ * Utility functions to help with music date validation
+ */
+
+// Check if today is the anniversary of an album/event
 export function isAnniversaryToday(releaseDate: string): boolean {
     try {
       // Parse the input date (format: YYYY-MM-DD or MM/DD/YYYY)
@@ -37,42 +42,28 @@ export function isAnniversaryToday(releaseDate: string): boolean {
   // Helper to parse different date formats
   function parseDate(dateString: string): Date | null {
     // Try different date formats
-    const formats = [
-      // YYYY-MM-DD
-      (str: string) => {
-        const parts = str.split('-');
-        if (parts.length === 3) {
-          return new Date(
-            parseInt(parts[0]), 
-            parseInt(parts[1]) - 1, // Month is 0-indexed
-            parseInt(parts[2])
-          );
-        }
-        return null;
-      },
-      // MM/DD/YYYY
-      (str: string) => {
-        const parts = str.split('/');
-        if (parts.length === 3) {
-          return new Date(
-            parseInt(parts[2]), 
-            parseInt(parts[0]) - 1, // Month is 0-indexed
-            parseInt(parts[1])
-          );
-        }
-        return null;
-      },
-      // Month DD, YYYY (e.g. "June 1, 1967")
-      (str: string) => {
-        const date = new Date(str);
-        return isNaN(date.getTime()) ? null : date;
-      }
-    ];
-    
-    // Try each format
-    for (const formatFn of formats) {
-      const date = formatFn(dateString);
-      if (date) return date;
+    // Format: YYYY-MM-DD
+    if (dateString.match(/^\d{4}-\d{1,2}-\d{1,2}$/)) {
+      const parts = dateString.split('-');
+      return new Date(
+        parseInt(parts[0]), 
+        parseInt(parts[1]) - 1, // Month is 0-indexed
+        parseInt(parts[2])
+      );
+    } 
+    // Format: MM/DD/YYYY
+    else if (dateString.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+      const parts = dateString.split('/');
+      return new Date(
+        parseInt(parts[2]), 
+        parseInt(parts[0]) - 1, // Month is 0-indexed
+        parseInt(parts[1])
+      );
+    }
+    // Format: Month DD, YYYY (e.g. "June 1, 1967")
+    else if (dateString.match(/^[A-Za-z]+ \d{1,2}, \d{4}$/)) {
+      const date = new Date(dateString);
+      return isNaN(date.getTime()) ? null : date;
     }
     
     return null;
